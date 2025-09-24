@@ -1,0 +1,30 @@
+# Folder Virtual Environment
+venv/
+.venv/
+env/
+.env/
+__pypackages__/
+
+# File environment
+.env
+
+# Folder cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Folder IDE (PyCharm, VSCode)
+.idea/
+.vscode/
+
+# Folder data yang dihasilkan secara lokal
+# Penting: abaikan vector_store agar tidak diunggah ke Git
+vector_store/
+
+# File sistem operasi
+.DS_Store
+Thumbs.db
+
+# File log
+*.log

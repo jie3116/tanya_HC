@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TANYA HC</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo Perusahaan" class="company-logo">
+            <h2>TANYA HC</h2>
+            <p>Tempat bertanya kebijakan kepegawaian BKI</p>
+        </div>
+        <div class="chat-window" id="chat-window">
+            <div class="message bot">
+                <p>Halo! Saya adalah chatbot yang siap membantu Anda dengan pertanyaan seputar kebijakan kepegawaian BKI. Silakan ajukan pertanyaan Anda.</p>
+            </div>
+        </div>
+        <form class="chat-form" id="chat-form">
+            <input type="text" id="user-input" placeholder="Ketik pertanyaan Anda di sini..." autocomplete="off">
+            <button type="submit">Kirim</button>
+        </form>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
