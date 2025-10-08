@@ -21,7 +21,8 @@ __pycache__/
 # Folder data yang dihasilkan secara lokal
 # Penting: abaikan vector_store agar tidak diunggah ke Git
 vector_store/
-static/kebijakan
+static/kebijakan/
+documents/
 
 # File sistem operasi
 .DS_Store
