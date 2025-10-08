@@ -1,9 +1,21 @@
+# --- Framework Inti ---
 flask
 python-dotenv
+
+# --- Server Produksi ---
+gunicorn
+waitress # Boleh tetap ada sebagai alternatif
+
+# --- AI & LangChain ---
 google-generativeai
 langchain
 langchain-google-genai
 langchain-community
+langchain-chroma
+
+# --- Database Vektor & Dokumen ---
 chromadb
 pypdf
+
+# --- Streaming (Server-Sent Events) ---
 sse-starlette

@@ -1,11 +1,11 @@
-// static/script.js
+// static/script.js (Versi Final dengan Perbaikan Link)
+
+// HAPUS SEMUA KONFIGURASI marked.js DARI SINI. KITA AKAN TANGANI SECARA BERBEDA.
 
 document.addEventListener('DOMContentLoaded', () => {
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
     const chatWindow = document.getElementById('chat-window');
-
-    // Buat ID unik untuk sesi chat ini
     const sessionId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     chatForm.addEventListener('submit', (e) => {
@@ -16,33 +16,37 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessageToChat('user', question);
         userInput.value = '';
         userInput.focus();
-
         handleStream(question);
     });
 
     function addMessageToChat(sender, text) {
         const messageContainer = document.createElement('div');
         messageContainer.classList.add('message', sender);
-
         const messageContent = document.createElement('div');
         messageContent.classList.add('message-content');
-
-        const p = document.createElement('p');
-        p.textContent = text;
-
-        messageContent.appendChild(p);
+        messageContent.innerHTML = text;
         messageContainer.appendChild(messageContent);
         chatWindow.appendChild(messageContainer);
         scrollToBottom();
+        return { messageContainer, messageContent };
+    }
 
-        return { messageContainer, messageContent, p };
+    // --- FUNGSI BARU UNTUK MEMPROSES LINK SETELAH RENDER ---
+    function processRenderedContent(element) {
+        // Cari semua tag <a> (link) di dalam elemen pesan bot
+        const links = element.querySelectorAll('a');
+        links.forEach(link => {
+            // Tambahkan atribut agar terbuka di tab baru
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+        });
     }
 
     async function handleStream(question) {
-        // Buat placeholder untuk jawaban bot
-        const botMessageElements = addMessageToChat('bot', '...');
-        const botParagraph = botMessageElements.p;
-        botParagraph.textContent = ''; // Kosongkan placeholder
+        const botMessageElements = addMessageToChat('bot',
+            `<div class="typing-indicator"><span></span><span></span><span></span></div>`
+        );
+        const botContentDiv = botMessageElements.messageContent;
 
         try {
             const response = await fetch('/ask', {
@@ -56,8 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let fullAnswer = "";
+            let isFirstToken = true;
 
-            // Baca stream data
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
@@ -70,69 +74,63 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         const data = JSON.parse(dataStr);
                         if (data.type === 'token') {
-                            // Tambahkan token (kata) ke paragraf
-                            botParagraph.innerHTML += data.content.replace(/\n/g, '<br>');
+                            if (isFirstToken) {
+                                botContentDiv.innerHTML = '';
+                                isFirstToken = false;
+                            }
                             fullAnswer += data.content;
-                        } else if (data.type === 'sources') {
-                            // Setelah selesai, tambahkan meta (copy, feedback, sources)
-                            addMessageMeta(botMessageElements.messageContainer, question, fullAnswer, data.content);
+                            // Biarkan marked.js bekerja seperti biasa
+                            botContentDiv.innerHTML = marked.parse(fullAnswer + "▌");
                         }
-                    } catch (e) {
-                        console.error('Error parsing stream data:', e);
-                    }
+                    } catch (e) { /* Abaikan error */ }
                 }
                 scrollToBottom();
             }
 
+            if (isFirstToken) {
+                botContentDiv.innerHTML = "<p>Saya tidak menemukan jawaban.</p>";
+            } else {
+                botContentDiv.innerHTML = marked.parse(fullAnswer);
+                // --- PANGGIL FUNGSI BARU KITA DI SINI ---
+                processRenderedContent(botContentDiv);
+            }
+
+            addMessageMeta(botMessageElements.messageContainer, question, fullAnswer);
+            scrollToBottom();
+
         } catch (error) {
-            botParagraph.textContent = 'Maaf, terjadi kesalahan. Silakan coba lagi.';
+            botContentDiv.innerHTML = '<p>Maaf, terjadi kesalahan. Silakan coba lagi.</p>';
             console.error('Streaming Error:', error);
         }
     }
 
-    function addMessageMeta(messageContainer, question, answer, sources) {
+    function addMessageMeta(messageContainer, question, answer) {
+        // ... (Fungsi ini tidak perlu diubah)
         const metaContainer = document.createElement('div');
         metaContainer.classList.add('message-meta');
-
-        // 1. Tampilkan Sumber
-        if (sources && sources.length > 0) {
-            const sourcesDiv = document.createElement('div');
-            sourcesDiv.classList.add('source-docs');
-            let sourcesHTML = '<strong>Sumber:</strong>';
-            sources.forEach(s => {
-                const fileName = s.source.split(/[\\/]/).pop(); // Ambil nama file saja
-                sourcesHTML += `<div>- ${fileName} (Hal. ${s.page + 1})</div>`;
-            });
-            sourcesDiv.innerHTML = sourcesHTML;
-            metaContainer.appendChild(sourcesDiv);
-        }
-
-        // 2. Tombol Copy
         const copyBtn = document.createElement('span');
         copyBtn.classList.add('copy-icon');
-        copyBtn.innerHTML = '&#x1F4CB;'; // Clipboard icon
+        copyBtn.innerHTML = '&#x1F4CB;';
         copyBtn.title = 'Salin jawaban';
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(answer).then(() => {
-                copyBtn.innerHTML = '&#x2714;'; // Checkmark
+                copyBtn.innerHTML = '&#x2714;';
                 setTimeout(() => { copyBtn.innerHTML = '&#x1F4CB;'; }, 1500);
             });
         });
         metaContainer.appendChild(copyBtn);
-
-        // 3. Tombol Feedback
         const feedbackDiv = document.createElement('div');
         feedbackDiv.classList.add('feedback-buttons');
-        const likeBtn = createFeedbackButton('&#x1F44D;', 'like', question, answer); // Thumbs up
-        const dislikeBtn = createFeedbackButton('&#x1F44E;', 'dislike', question, answer); // Thumbs down
+        const likeBtn = createFeedbackButton('&#x1F44D;', 'like', question, answer);
+        const dislikeBtn = createFeedbackButton('&#x1F44E;', 'dislike', question, answer);
         feedbackDiv.appendChild(likeBtn);
         feedbackDiv.appendChild(dislikeBtn);
         metaContainer.appendChild(feedbackDiv);
-
         messageContainer.appendChild(metaContainer);
     }
 
     function createFeedbackButton(icon, type, question, answer) {
+        // ... (Fungsi ini tidak perlu diubah)
         const btn = document.createElement('span');
         btn.classList.add('feedback-icon');
         btn.innerHTML = icon;
@@ -143,7 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question, answer, feedback_type: type }),
             });
-            // Beri visual feedback bahwa tombol sudah diklik
             btn.parentElement.childNodes.forEach(child => child.style.opacity = '0.5');
             btn.style.opacity = '1';
         });

@@ -34,8 +34,21 @@ body {
     gap: 15px;
 }
 
+.header-text h1 {
+    font-size: 1.4em; /* Sedikit menyesuaikan ukuran font H1 */
+    font-weight: 500; /* Membuat font tidak terlalu tebal */
+    margin-bottom: 2px; /* MENGURANGI jarak bawah dari SMART HC */
+    margin-top: 0;
+}
+
+.header-text p {
+    margin-top: 0; /* MENGHAPUS jarak atas dari sub-judul */
+    font-size: 0.85em;
+    opacity: 0.9;
+}
+
 .company-logo {
-    height: 40px;
+    height: 80px;
     width: auto;
 }
 
@@ -194,4 +207,71 @@ body {
 
 .chat-form button:hover {
     background-color: #0d47a1;
+}
+
+/* Penataan untuk header-text */
+.header-text {
+    text-align: left;
+    flex-grow: 1;
+}
+
+/* Penataan untuk tombol ikon baru */
+.chat-form button svg {
+    fill: white;
+}
+
+/* Penataan untuk footer */
+.page-footer {
+    position: absolute;
+    bottom: 5px;
+    width: 100%;
+    text-align: center;
+    font-size: 0.8em;
+    color: #888;
+}
+
+
+.message-content ul, .message-content ol {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    padding-left: 2em; /* Memberi jarak agar bullet point tidak menempel ke kiri */
+}
+
+/* static/style.css - Tambahkan ini di akhir file */
+
+/* Kontainer untuk animasi titik */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Rata kiri */
+    padding: 10px 15px; /* Sesuaikan dengan padding .message-content */
+}
+
+/* Tampilan untuk setiap titik */
+.typing-indicator span {
+    height: 8px;
+    width: 8px;
+    background-color: #90a4ae; /* Warna abu-abu netral */
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: bounce 1.2s infinite ease-in-out;
+}
+
+/* Delay animasi agar titik bergerak bergantian */
+.typing-indicator span:nth-of-type(2) {
+    animation-delay: -1.0s;
+}
+
+.typing-indicator span:nth-of-type(3) {
+    animation-delay: -0.8s;
+}
+
+/* Keyframe untuk animasi 'bounce' */
+@keyframes bounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+    }
+    40% {
+        transform: scale(1.0);
+    }
 }
