@@ -1,7 +1,9 @@
 # app.py
 
 import logging
-from flask import Flask, request, jsonify, render_template, Response
+import os
+from flask import Flask, request, jsonify, render_template, Response, session
+from flask_session import Session
 import json
 from langchain_google_genai import ChatGoogleGenerativeAI # untuk classifier
 from rag_core import get_conversational_rag_chain
@@ -10,7 +12,19 @@ logging.basicConfig(filename='feedback.log', level=logging.INFO,
                     format='%(asctime)s - %(message)s')
 
 app = Flask(__name__)
-sessions = {}
+
+# 1. Atur Secret Key dari environment variable
+app.secret_key = os.environ.get("SECRET_KEY", "70177c807b9bc314da08ade38e2c6ee4692edee24b7d94df")
+
+# 2. Konfigurasi Flask-Session untuk menyimpan file di sistem file
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_PERMANENT"] = True
+app.config["SESSION_USE_SIGNER"] = True
+# path di dalam container yang akan di-mount sebagai volume
+app.config["SESSION_FILE_DIR"] = os.environ.get("SESSION_FILE_DIR", "./flask_session")
+
+# 3. Inisialisasi ekstensi Session
+server_session = Session(app)
 
 
 # Inisialisasi LLM khusus untuk tugas klasifikasi
@@ -49,51 +63,39 @@ def classify_question(question: str) -> str:
 
 
 def stream_canned_response(category: str):
-    """
-    Melakukan streaming untuk jawaban yang sudah disiapkan.
-    """
     response_text = CANNED_RESPONSES.get(category, CANNED_RESPONSES["TIDAK_RELEVAN"])
-    for word in response_text.split():
-        yield f"data: {json.dumps({'type': 'token', 'content': word + ' '})}\n\n"
-    # Kirim sumber kosong karena ini bukan dari dokumen
-    yield f"data: {json.dumps({'type': 'sources', 'content': []})}\n\n"
-
-
+    full_response = " ".join(response_text.split()) # Gabungkan kembali
+    yield f"data: {json.dumps({'type': 'token', 'content': full_response})}\n\n"
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
-
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.get_json()
     question = data.get("question")
-    session_id = data.get("session_id")
 
-    if not all([question, session_id]):
-        return jsonify({"error": "Question and session_id are required"}), 400
+    if not question:
+        return jsonify({"error": "Question is required"}), 400
 
-    # --- LOGIKA ROUTER BARU ---
-
-    # 1. Klasifikasikan pertanyaan terlebih dahulu
     category = classify_question(question)
 
-    # 2. Jika bukan pertanyaan kebijakan, berikan jawaban siap pakai
     if category != "KEBIJAKAN_PERUSAHAAN":
         return Response(stream_canned_response(category), mimetype='text/event-stream')
 
-    # 3. Jika pertanyaan kebijakan, lanjutkan dengan alur RAG
-    if session_id not in sessions:
-        sessions[session_id] = get_conversational_rag_chain()
+    # Periksa apakah RAG chain sudah ada di dalam 'session'
+    if 'rag_chain' not in session:
+        print("Membuat RAG chain baru untuk sesi ini...")
+        # Jika belum, buat dan simpan di session
+        session['rag_chain'] = get_conversational_rag_chain()
 
-    chain = sessions[session_id]
+    # Ambil chain dari session
+    chain = session['rag_chain']
 
     def stream_response():
         final_answer = ""
-        # Kita tidak perlu lagi variabel source_documents
         for chunk in chain.stream({"question": question}):
-            # Sekarang output chain hanya 'answer'
             word = chunk.get("answer", "")
             final_answer += word
             yield f"data: {json.dumps({'type': 'token', 'content': word})}\n\n"
@@ -111,6 +113,4 @@ def feedback():
 
 
 if __name__ == "__main__":
-    # Disarankan tetap menggunakan waitress untuk streaming yang lebih baik
-    # waitress-serve --host=127.0.0.1 --port=5001 app:app
     app.run(debug=True, port=5001)
