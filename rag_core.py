@@ -35,25 +35,36 @@ Jawaban:
 """
 
 
-def get_conversational_rag_chain():
+def get_conversational_rag_chain(chat_history: list):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
     db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
     retriever = db.as_retriever(search_kwargs={'k': 3})
 
+    # Buat objek memori baru
     memory = ConversationBufferMemory(
-        memory_key="chat_history", return_messages=True, output_key='answer'
+        memory_key="chat_history",
+        return_messages=True,
+        output_key='answer'
     )
+
+    # Isi memori dengan riwayat dari sesi sebelumnya
+    for msg in chat_history:
+        if msg.get("role") == "user":
+            memory.chat_memory.add_user_message(msg.get("content"))
+        elif msg.get("role") == "assistant":
+            memory.chat_memory.add_ai_message(msg.get("content"))
 
     model = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash", temperature=0.1, streaming=True
+        model="gemini-2.5-flash",  # Ganti "gemini-2.5-flash" menjadi ini jika ada error
+        temperature=0.1,
+        streaming=True
     )
 
-    # Pembuatan chain kembali sederhana
     chain = ConversationalRetrievalChain.from_llm(
         llm=model,
         retriever=retriever,
-        memory=memory,
-        return_source_documents=False,  # Tetap False
+        memory=memory,  # Gunakan memori yang sudah diisi
+        return_source_documents=False,
         combine_docs_chain_kwargs={
             "prompt": PromptTemplate.from_template(PROMPT_TEMPLATE)
         }

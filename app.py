@@ -69,38 +69,55 @@ def stream_canned_response(category: str):
 
 @app.route("/")
 def index():
+    session.pop('chat_history', None)
     return render_template("index.html")
+
 
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.get_json()
     question = data.get("question")
-
     if not question:
         return jsonify({"error": "Question is required"}), 400
 
     category = classify_question(question)
-
     if category != "KEBIJAKAN_PERUSAHAAN":
         return Response(stream_canned_response(category), mimetype='text/event-stream')
 
-    # Periksa apakah RAG chain sudah ada di dalam 'session'
-    if 'rag_chain' not in session:
-        print("Membuat RAG chain baru untuk sesi ini...")
-        # Jika belum, buat dan simpan di session
-        session['rag_chain'] = get_conversational_rag_chain()
+    # 1. Ambil riwayat dan buat chain di dalam konteks permintaan yang aktif
+    chat_history = session.get("chat_history", [])
+    chain = get_conversational_rag_chain(chat_history)
 
-    # Ambil chain dari session
-    chain = session['rag_chain']
-
-    def stream_response():
+    # 2. Buat fungsi generator untuk streaming
+    def stream_response_generator():
         final_answer = ""
         for chunk in chain.stream({"question": question}):
             word = chunk.get("answer", "")
             final_answer += word
             yield f"data: {json.dumps({'type': 'token', 'content': word})}\n\n"
 
-    return Response(stream_response(), mimetype='text/event-stream')
+        # 3. Setelah streaming selesai, PERBARUI riwayat di sini (masih di dalam generator)
+        # tidak mengakses 'session' di sini, hanya memperbarui variabel lokal
+        nonlocal chat_history
+        chat_history.append({"role": "user", "content": question})
+        chat_history.append({"role": "assistant", "content": final_answer})
+
+    # 4. Eksekusi generator dan simpan hasilnya
+
+    response_generator = stream_response_generator()
+
+    # Simpan generator sebagai list agar bisa diiterasi dua kali jika perlu
+    response_chunks = list(response_generator)
+
+    # 5. SIMPAN riwayat ke session DI SINI, di mana konteks masih valid
+    session["chat_history"] = chat_history
+
+    # 6. Kembalikan respons streaming ke pengguna
+    def generate():
+        for chunk in response_chunks:
+            yield chunk
+
+    return Response(generate(), mimetype='text/event-stream')
 
 @app.route("/feedback", methods=["POST"])
 def feedback():
